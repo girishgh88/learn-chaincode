@@ -63,6 +63,7 @@ func (s *SmartContract) Invoke(APIstub shim.ChaincodeStubInterface, function str
 	// Retrieve the requested Smart Contract function and arguments
 	//function, args := APIstub.GetFunctionAndParameters()
 	// Route to the appropriate handler function to interact with the ledger appropriately
+	fmt.Println("Invoke is running " + function)
 	if function == "queryFlight" {
 		return s.queryFlight(APIstub, args)
 	}else if function == "createFlight" {
@@ -76,7 +77,7 @@ func (s *SmartContract) Invoke(APIstub shim.ChaincodeStubInterface, function str
 }
 
 func (s *SmartContract) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	fmt.Println("query is running " + function)
+	fmt.Println(">>query is running " + function)
 
 	// Handle different functions
 	if function == "read" { //read a variable
@@ -125,10 +126,11 @@ func (s *SmartContract) read(stub shim.ChaincodeStubInterface, args []string) ([
 }
 
 func (s *SmartContract) queryFlight(APIstub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-
+	fmt.Println("queryFlight is running ")
 	if len(args) != 1 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 1")
 	}
+	fmt.Println("flight key is ",args[0])
 	flightAsBytes, _ := APIstub.GetState(args[0])
 	return flightAsBytes, nil
 }
@@ -137,37 +139,46 @@ func (s *SmartContract) createFlight(APIstub shim.ChaincodeStubInterface, args [
 	//legDetails1 := []FlightLeg{FlightLeg{Origin: "LOC1", Destination: "LOC2", DeptDate:"19-07-2017", DeptTime:"10:00", ArrDate:"19-07-2017", ArrTime:"11:00", TravelMode: "Fixed Wing", LegNo: 1, AvailSeats: 100},FlightLeg{Origin: "LOC2", Destination: "LOC3", DeptDate:"19-07-2017", DeptTime:"11:10", ArrDate:"19-07-2017", ArrTime:"12:30", TravelMode: "Fixed Wing", LegNo: 1, AvailSeats: 100}}
 	
 	//flight := Flight{FlightKey: "Flight#", FlightName: "TEST_FLT", OwnerCompany: "PHI", FlightType: "FTYPE1", SlNo: "SL01", Origin: "LOC1", Destination: "LOC3", DeptDate: "19-07-2017", DeptTime: "10:00", ArrDate: "19-07-2017", ArrTime: "12:30", NoOfSeats: 100, NoOfStops: 1, LegDetails: legDetails1}
-	
+	fmt.Println("createFlight is running ")
 	if len(args) != 2 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 2")
 	}
+	fmt.Println("company ",args[0])
     flight := Flight{}
 	flight_json := args[1]
+	fmt.Println("flight_json ",flight_json)
 	flightByteArray := []byte(flight_json)
+	fmt.Println("flightByteArray created...") 
     err := json.Unmarshal(flightByteArray, &flight)
     if err != nil {
+		fmt.Println("unmarshalling failed... err=",err) 
         fmt.Println("Error while parsing file")
         return nil, errors.New("Incorrect number of arguments. Expecting 2")
     }
-	
+	fmt.Println("unmarshalling completed... flight=",flight) 
 	createSharedFlights(APIstub,flight)
 	return nil, nil
 }
 
 func createSharedFlights(APIstub shim.ChaincodeStubInterface,flight Flight) ([]Flight, error){
+	fmt.Println("createSharedFlights is running ")
 	fltShrContracts := []FlightShrContract{FlightShrContract{OwnerCompany: PEER2, PercSeatAlloc: 20},FlightShrContract{OwnerCompany: PEER3, PercSeatAlloc: 30},FlightShrContract{OwnerCompany: PEER4, PercSeatAlloc: 10}}
 	totalSeats := flight.NoOfSeats
 	availSeat  := totalSeats
 	var noOfSeats uint8
 	var key string
 	i := 0
+	fmt.Println("fltShrContracts= ",fltShrContracts)
 	for i < len(fltShrContracts) {
 		fltShrContract := fltShrContracts[i]
 		if(fltShrContract.PercSeatAlloc > 0){
 			noOfSeats = totalSeats * (fltShrContract.PercSeatAlloc/100);
+			fmt.Println("noOfSeats= ",noOfSeats)
+			fmt.Println("availSeat= ",availSeat)
 			if(availSeat>=noOfSeats){
 				newFlight := prepareFlight(flight,noOfSeats,&availSeat,fltShrContract.OwnerCompany)
 				key = fmt.Sprintf("%s%s%d", newFlight.OwnerCompany, "_F", i)
+				fmt.Println("key= ",key)
 				addFlightToLedger(APIstub,key,newFlight)
 			}
 		}
@@ -182,16 +193,19 @@ func createSharedFlights(APIstub shim.ChaincodeStubInterface,flight Flight) ([]F
 }
 
 func prepareFlight(flight Flight, noOfSeats uint8, availSeat *uint8, ownerCompany string) Flight {
+	fmt.Println("prepareFlight is running...")
 	newFlight := Flight{}
 	*(&newFlight)= *(&flight)
 	newFlight.LegDetails = copyLegDetails(flight.LegDetails,noOfSeats)
 	newFlight.OwnerCompany = ownerCompany
 	newFlight.NoOfSeats = noOfSeats
 	*availSeat = *availSeat - noOfSeats
+	fmt.Println("Flight prepared...",newFlight)
 	return newFlight
 }
 
 func copyLegDetails(flightLegs []FlightLeg, noOfSeats uint8) []FlightLeg{
+	fmt.Println("copyLegDetails is running...")
 	var newFlightLegs []FlightLeg
 	var flightLeg FlightLeg
 	i := 0
@@ -202,15 +216,15 @@ func copyLegDetails(flightLegs []FlightLeg, noOfSeats uint8) []FlightLeg{
 		newFlightLegs = append(newFlightLegs, flightLeg)
 		i++
 	}
+	fmt.Println("created flight legs...", newFlightLegs)
 	return newFlightLegs
 }
 
 func addFlightToLedger(APIstub shim.ChaincodeStubInterface, key string, flight Flight) ([]byte, error) {
-
-	fmt.Printf(">> start writing flight to ledger - Key:",key)
+	fmt.Println(">> start writing flight to ledger - Key:",key)
 	flightAsBytes, _ := json.Marshal(flight)
 	APIstub.PutState(key, flightAsBytes)
-	fmt.Printf(">> writing flight to ledger completed- Key:",key)
+	fmt.Println(">> writing flight to ledger completed- Key:",key)
 	return nil, nil
 }
 
