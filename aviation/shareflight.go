@@ -132,12 +132,7 @@ func (s *SmartContract) queryFlight(APIstub shim.ChaincodeStubInterface, args []
 		fmt.Println("Time Stamp err=",err)
 	}
 	fmt.Println("Time Stamp=",timeStmp)
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1")
-	}
-	fmt.Println("flight key is ",args[0])
-	flightAsBytes, _ := APIstub.GetState(args[0])
-	return flightAsBytes, nil
+	return s.read(APIstub, args)
 }
 
 func (s *SmartContract) createFlight(APIstub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
@@ -182,7 +177,7 @@ func createSharedFlights(APIstub shim.ChaincodeStubInterface,flight Flight) ([]F
 			fmt.Println("availSeat= ",availSeat)
 			if(availSeat>=noOfSeats){
 				newFlight := prepareFlight(flight,noOfSeats,&availSeat,fltShrContract.OwnerCompany)
-				key = fmt.Sprintf("%s%s%d", newFlight.OwnerCompany, "_F", i)
+				key = fmt.Sprintf("%s%s%d", newFlight.OwnerCompany, "_F_", i)
 				fmt.Println("key= ",key)
 				addFlightToLedger(APIstub,key,newFlight)
 			}
@@ -191,7 +186,7 @@ func createSharedFlights(APIstub shim.ChaincodeStubInterface,flight Flight) ([]F
 	}
 	if(availSeat>0){
 		newFlight := prepareFlight(flight,availSeat,&availSeat,flight.OwnerCompany)
-		key = fmt.Sprintf("%s%s%d", newFlight.OwnerCompany, "_F", i)
+		key = fmt.Sprintf("%s%s%d", newFlight.OwnerCompany, "_F_", i)
 		addFlightToLedger(APIstub,key,newFlight)
 	}
 	return nil, nil
@@ -205,7 +200,7 @@ func prepareFlight(flight Flight, noOfSeats uint8, availSeat *uint8, ownerCompan
 	newFlight.OwnerCompany = ownerCompany
 	newFlight.NoOfSeats = noOfSeats
 	*availSeat = *availSeat - noOfSeats
-	fmt.Println("Flight prepared...",newFlight)
+	fmt.Printf("Flight prepared... %+v\n",newFlight)
 	return newFlight
 }
 
@@ -221,7 +216,7 @@ func copyLegDetails(flightLegs []FlightLeg, noOfSeats uint8) []FlightLeg{
 		newFlightLegs = append(newFlightLegs, flightLeg)
 		i++
 	}
-	fmt.Println("created flight legs...", newFlightLegs)
+	fmt.Printf("created flight legs... %v", newFlightLegs)
 	return newFlightLegs
 }
 
