@@ -126,7 +126,12 @@ func (s *SmartContract) read(stub shim.ChaincodeStubInterface, args []string) ([
 }
 
 func (s *SmartContract) queryFlight(APIstub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	fmt.Println("queryFlight is running ")
+	fmt.Println("queryFlight is running11S ")
+	timeStmp, err := APIstub.GetTxTimestamp()
+	if err != nil {
+		fmt.Println("Time Stamp err=",err)
+	}
+	fmt.Println("Time Stamp=",timeStmp)
 	if len(args) != 1 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 1")
 	}
